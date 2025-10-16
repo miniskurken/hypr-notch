@@ -5,6 +5,13 @@
 //! including handling transparency, rounded corners,
 //! and other visual elements.
 
+use fontdue::{Font, FontSettings};
+use log::{info, warn};
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+use std::sync::OnceLock;
+
 /// Fill a canvas with color and rounded corners if expanded
 pub fn fill_canvas_with_rounded_corners(
     canvas: &mut [u8],
@@ -60,6 +67,49 @@ pub fn fill_canvas_with_rounded_corners(
     }
 }
 
+fn get_system_font() -> &'static Font {
+    static FONT: OnceLock<Font> = OnceLock::new();
+
+    FONT.get_or_init(|| {
+        // Try to load system fonts in order of preference
+        let font_paths = [
+            // Common font paths on Arch-based systems
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/Arial.ttf",
+            "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+            // Add more potential paths here
+        ];
+
+        for path in &font_paths {
+            if let Ok(font) = load_font_from_path(path) {
+                info!("Loaded system font from {}", path);
+                return font;
+            }
+        }
+
+        // Fallback to a simple built-in font if no system fonts found
+        warn!("No system fonts found, using embedded fallback font");
+        let fallback_data = include_bytes!("../assets/fallback.ttf");
+        Font::from_bytes(fallback_data as &[u8], FontSettings::default())
+            .expect("Failed to load fallback font")
+    })
+}
+
+fn load_font_from_path(path: &str) -> Result<Font, Box<dyn std::error::Error>> {
+    let path = Path::new(path);
+    if !path.exists() {
+        return Err(format!("Font file not found: {}", path.display()).into());
+    }
+
+    let mut file = File::open(path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+
+    let font = Font::from_bytes(buffer, FontSettings::default())?;
+    Ok(font)
+}
+
 /// Canvas abstraction for module drawing
 pub struct Canvas<'a> {
     buffer: &'a mut [u8],
@@ -109,14 +159,72 @@ impl<'a> Canvas<'a> {
         }
     }
 
-    /// Draw simple text (placeholder implementation - will need a proper font renderer)
-    pub fn draw_text(&mut self, x: i32, y: i32, text: &str, color: [u8; 4]) {
-        // This is a very simple placeholder that just draws a rectangle
-        // Later, you'll want to implement proper text rendering with a font library
-        let text_width = text.len() as u32 * 8; // Assume 8px per character
-        let text_height = 16; // Assume 16px height
+    /// Draw text with given color, size and position
+    pub fn draw_text(&mut self, x: i32, y: i32, text: &str, color: [u8; 4], size: f32) {
+        let font = get_system_font();
+        let scale = size;
 
-        self.fill_rect(x, y, text_width, text_height, color);
+        // Track current position
+        let mut cursor_x = x;
+
+        for c in text.chars() {
+            // Get the rasterized glyph
+            let (metrics, bitmap) = font.rasterize(c, scale);
+
+            // Skip non-renderable characters
+            if metrics.width == 0 || metrics.height == 0 {
+                cursor_x += (metrics.advance_width + 1.0) as i32;
+                continue;
+            }
+
+            // Render the glyph
+            let glyph_x = cursor_x + metrics.xmin;
+            let glyph_y = y + metrics.ymin;
+
+            for glyph_y_offset in 0..metrics.height {
+                let canvas_y = glyph_y + glyph_y_offset as i32;
+                if canvas_y < 0 || canvas_y >= self.height as i32 {
+                    continue;
+                }
+
+                for glyph_x_offset in 0..metrics.width {
+                    let canvas_x = glyph_x + glyph_x_offset as i32;
+                    if canvas_x < 0 || canvas_x >= self.width as i32 {
+                        continue;
+                    }
+
+                    // Get alpha value from bitmap
+                    let alpha = bitmap[glyph_y_offset * metrics.width + glyph_x_offset] as u16;
+                    if alpha == 0 {
+                        continue;
+                    }
+
+                    // Calculate the index in our canvas buffer
+                    let idx = (canvas_y as u32 * self.width + canvas_x as u32) as usize * 4;
+                    if idx + 3 < self.buffer.len() {
+                        // Blend the glyph with existing color
+                        let blend_alpha = alpha as f32 / 255.0;
+
+                        for i in 0..3 {
+                            let existing = self.buffer[idx + i] as f32;
+                            let new = color[i] as f32;
+                            self.buffer[idx + i] =
+                                (existing * (1.0 - blend_alpha) + new * blend_alpha) as u8;
+                        }
+
+                        // Update alpha channel
+                        let existing_alpha = self.buffer[idx + 3] as f32 / 255.0;
+                        let new_alpha = (color[3] as f32 / 255.0) * blend_alpha;
+                        let final_alpha =
+                            (existing_alpha + new_alpha * (1.0 - existing_alpha)) * 255.0;
+                        self.buffer[idx + 3] = final_alpha.min(255.0) as u8;
+                    }
+                }
+            }
+
+            // Advance cursor position
+            cursor_x += metrics.advance_width as i32;
+        }
     }
 }
 

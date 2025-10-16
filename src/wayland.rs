@@ -1,13 +1,9 @@
-// filepath: hypr-notch/src/wayland.rs
+// filepath: src/wayland.rs
 //! Wayland protocol handlers for hypr-notch
-//!
-//! This file implements the various Wayland protocol handlers
-//! required by the application, including compositor, output,
-//! layer shell, seat, and pointer handlers.
 
 use crate::app::AppData;
-use crate::module::interface::convert_pointer_event;
-use log::{debug, info};
+use crate::pointer::handle_pointer_events;
+use log::{debug, info, warn};
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
     delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry,
@@ -16,7 +12,7 @@ use smithay_client_toolkit::{
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
-        pointer::{PointerEvent, PointerEventKind, PointerHandler},
+        pointer::{PointerEvent, PointerHandler},
         Capability, SeatHandler, SeatState,
     },
     shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
@@ -35,7 +31,7 @@ impl CompositorHandler for AppData {
         _surface: &wl_surface::WlSurface,
         _new_factor: i32,
     ) {
-        // Handle scale factor changes if needed
+        debug!("CompositorHandler: scale_factor_changed");
     }
 
     fn transform_changed(
@@ -45,7 +41,7 @@ impl CompositorHandler for AppData {
         _surface: &wl_surface::WlSurface,
         _new_transform: wl_output::Transform,
     ) {
-        // Handle transform changes if needed
+        debug!("CompositorHandler: transform_changed");
     }
 
     fn frame(
@@ -55,7 +51,6 @@ impl CompositorHandler for AppData {
         _surface: &wl_surface::WlSurface,
         _time: u32,
     ) {
-        // Send update event to modules on frame events
         if self.expanded {
             self.update_modules();
         }
@@ -73,7 +68,7 @@ impl OutputHandler for AppData {
         _qh: &QueueHandle<Self>,
         _output: wl_output::WlOutput,
     ) {
-        // Handle new outputs
+        info!("OutputHandler: new_output");
     }
 
     fn update_output(
@@ -82,7 +77,7 @@ impl OutputHandler for AppData {
         _qh: &QueueHandle<Self>,
         _output: wl_output::WlOutput,
     ) {
-        // Handle output updates
+        info!("OutputHandler: update_output");
     }
 
     fn output_destroyed(
@@ -91,12 +86,13 @@ impl OutputHandler for AppData {
         _qh: &QueueHandle<Self>,
         _output: wl_output::WlOutput,
     ) {
-        // Handle output destruction
+        info!("OutputHandler: output_destroyed");
     }
 }
 
 impl LayerShellHandler for AppData {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
+        info!("LayerShellHandler: closed");
         self.close_layer_surface();
     }
 
@@ -108,7 +104,7 @@ impl LayerShellHandler for AppData {
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        // Only update dimensions if server provides non-zero values
+        info!("Surface configured to size: {:?}", configure.new_size);
         let mut width = self.width;
         let mut height = self.height;
 
@@ -121,6 +117,8 @@ impl LayerShellHandler for AppData {
 
         self.update_size(width, height);
         self.set_configured(true);
+
+        info!("Surface now configured with size: {}x{}", width, height);
     }
 }
 
@@ -130,19 +128,24 @@ impl SeatHandler for AppData {
     }
 
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
-        // Handle new seat
+        info!("SeatHandler: new_seat");
     }
 
     fn new_capability(
         &mut self,
         _conn: &Connection,
-        qh: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
         seat: wl_seat::WlSeat,
         capability: Capability,
     ) {
-        // Get pointer capability when available
+        info!("SeatHandler: new_capability: {:?}", capability);
         if capability == Capability::Pointer {
-            let pointer = self.seat_state().get_pointer(qh, &seat).ok();
+            let pointer = self.seat_state().get_pointer(_qh, &seat).ok();
+            if pointer.is_some() {
+                info!("Pointer capability acquired and pointer created");
+            } else {
+                warn!("Pointer capability acquired but pointer creation failed");
+            }
             self.set_pointer(pointer);
         }
     }
@@ -154,14 +157,14 @@ impl SeatHandler for AppData {
         _seat: wl_seat::WlSeat,
         capability: Capability,
     ) {
-        // Release pointer when capability is removed
+        info!("SeatHandler: remove_capability: {:?}", capability);
         if capability == Capability::Pointer {
             self.set_pointer(None);
         }
     }
 
     fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
-        // Handle seat removal
+        info!("SeatHandler: remove_seat");
     }
 }
 
@@ -173,42 +176,11 @@ impl PointerHandler for AppData {
         _pointer: &wl_pointer::WlPointer,
         events: &[PointerEvent],
     ) {
-        for event in events {
-            // Log pointer events
-            match event.kind {
-                PointerEventKind::Enter { .. } => {
-                    info!(
-                        "Mouse entered notch area at coordinates: ({:.2}, {:.2})",
-                        event.position.0, event.position.1
-                    );
-                    self.resize(true);
-                }
-                PointerEventKind::Leave { .. } => {
-                    info!("Mouse left notch area");
-                    self.resize(false);
-                }
-                PointerEventKind::Motion { .. } => {
-                    debug!(
-                        "Mouse moved within notch area: ({:.2}, {:.2})",
-                        event.position.0, event.position.1
-                    );
-                }
-                PointerEventKind::Press { .. } => {
-                    debug!("Mouse button pressed in notch area");
-                }
-                PointerEventKind::Release { .. } => {
-                    debug!("Mouse button released in notch area");
-                }
-                _ => {}
-            }
-
-            // Forward events to modules when expanded
-            if self.expanded {
-                if let Some(module_event) = convert_pointer_event(event) {
-                    self.update_modules(); // Update modules on any pointer event
-                }
-            }
-        }
+        debug!(
+            "PointerHandler: pointer_frame called with {} events",
+            events.len()
+        );
+        handle_pointer_events(events, self);
     }
 }
 

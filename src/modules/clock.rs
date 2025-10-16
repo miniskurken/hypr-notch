@@ -12,6 +12,8 @@ pub struct ClockModule {
     name: String,
     color: [u8; 4],
     format: String,
+    font_size: f32,
+    background_color: [u8; 4],
 }
 
 impl ClockModule {
@@ -21,12 +23,13 @@ impl ClockModule {
             name: "Clock".to_string(),
             color: [255, 255, 255, 255], // White
             format: "%H:%M:%S".to_string(),
+            font_size: 16.0,
+            background_color: [50, 50, 50, 200], // Semi-transparent dark gray
         }
     }
 
     fn get_current_time(&self) -> String {
         // Simple implementation that shows HH:MM:SS
-        // Later you can use chrono for better formatting
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -66,16 +69,28 @@ impl Module for ClockModule {
             self.format = format.to_string();
         }
 
+        // Parse font size if present
+        if let Some(size) = config.get("font_size").and_then(|v| v.as_float()) {
+            self.font_size = size as f32;
+        }
+
         Ok(())
     }
 
     fn draw(&self, canvas: &mut Canvas, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
-        // Fill background for debugging
-        canvas.fill_rect(area.x, area.y, area.width, area.height, [50, 50, 50, 200]);
+        // Fill background
+        canvas.fill_rect(
+            area.x,
+            area.y,
+            area.width,
+            area.height,
+            self.background_color,
+        );
 
         // Draw time text
         let time_str = self.get_current_time();
-        canvas.draw_text(area.x + 5, area.y + 5, &time_str, self.color);
+        let y_pos = area.y + ((area.height as i32 - self.font_size as i32) / 2);
+        canvas.draw_text(area.x + 10, y_pos, &time_str, self.color, self.font_size);
 
         Ok(())
     }
