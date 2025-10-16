@@ -1,3 +1,4 @@
+// filepath: hypr-notch/src/app.rs
 //! Main application logic for hypr-notch
 //!
 //! This file contains the AppData struct which holds the application state
@@ -6,6 +7,8 @@
 
 use crate::config::NotchConfig;
 use crate::draw;
+use crate::module::{ModuleEvent, ModuleRegistry};
+use crate::modules::ClockModule;
 use log::info;
 use smithay_client_toolkit::{
     compositor::CompositorState,
@@ -32,10 +35,12 @@ pub struct AppData {
     pub(crate) width: u32,
     pub(crate) height: u32,
     configured: bool,
-    expanded: bool,
+    pub(crate) expanded: bool,
     pointer: Option<wl_pointer::WlPointer>,
     config: NotchConfig,
     last_draw: Option<Instant>,
+    // Add module registry
+    module_registry: ModuleRegistry,
 }
 
 impl AppData {
@@ -58,6 +63,20 @@ impl AppData {
         layer_surface.set_margin(0, 0, 0, 0);
         layer_surface.wl_surface().commit();
 
+        // Create and initialize the module registry
+        let mut module_registry = ModuleRegistry::new();
+
+        // Initialize modules based on configuration
+        if let Err(err) = module_registry.load_modules_from_config(&config) {
+            log::error!("Failed to load modules from config: {}", err);
+        }
+
+        // Add a clock module by default if none configured
+        if !module_registry.has_modules() {
+            info!("No modules configured, adding default clock module");
+            module_registry.add_module(Box::new(ClockModule::new()));
+        }
+
         Self {
             registry_state,
             output_state,
@@ -73,6 +92,7 @@ impl AppData {
             pointer: None,
             config,
             last_draw: None,
+            module_registry,
         }
     }
 
@@ -115,7 +135,7 @@ impl AppData {
             wl_shm::Format::Argb8888,
         )?;
 
-        // Draw the surface
+        // Draw the background with rounded corners
         let expanded = self.expanded;
         let corner_radius = self.config.corner_radius;
         let color = self.config.background_color;
@@ -128,6 +148,15 @@ impl AppData {
             corner_radius,
             color,
         );
+
+        // If expanded, draw modules
+        if self.expanded {
+            // Create a canvas abstraction for modules to draw on
+            let mut canvas_wrapper = draw::Canvas::new(canvas, width, height);
+
+            // Draw all modules
+            self.module_registry.draw(&mut canvas_wrapper);
+        }
 
         // Attach buffer to surface and commit
         if let Some(layer_surface) = &self.layer_surface {
@@ -168,6 +197,10 @@ impl AppData {
                 self.width = self.config.expanded_width;
                 self.height = self.config.expanded_height;
                 layer_surface.set_size(self.width, self.height);
+
+                // Recalculate module layout when expanding
+                self.module_registry
+                    .calculate_layout(self.width, self.height);
             } else {
                 self.width = self.config.collapsed_width;
                 self.height = self.config.collapsed_height;
@@ -175,6 +208,11 @@ impl AppData {
             }
             layer_surface.wl_surface().commit();
         }
+    }
+
+    /// Send update event to all modules
+    pub fn update_modules(&mut self) {
+        self.module_registry.handle_event(&ModuleEvent::Update);
     }
 
     // Accessors for Wayland handlers

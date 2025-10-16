@@ -1,3 +1,4 @@
+// filepath: hypr-notch/src/main.rs
 //! Main entry point for hypr-notch
 //!
 //! This file contains the main function that initializes the application,
@@ -7,11 +8,13 @@
 mod app;
 mod config;
 mod draw;
+mod module;
+mod modules;
 mod wayland;
 
 use app::AppData;
 use config::NotchConfig;
-use log::{info, warn};
+use log::info;
 use smithay_client_toolkit::{
     compositor::CompositorState,
     output::OutputState,
@@ -30,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration
     let config = NotchConfig::load_from_file().unwrap_or_default();
     info!("Configuration loaded");
+
     // Connect to Wayland server
     let conn = Connection::connect_to_env()?;
     let (globals, mut event_queue) = registry_queue_init(&conn)?;
@@ -63,6 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Event loop
+    info!("Entering main event loop");
     loop {
         event_queue.blocking_dispatch(&mut app_data)?;
 

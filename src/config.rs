@@ -20,6 +20,19 @@ pub struct NotchConfig {
     pub expanded_height: u32,
     pub corner_radius: u32,
     pub background_color: [u8; 4], // BGRA format
+
+    // New modules field with default
+    #[serde(default)]
+    pub modules: ModulesConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModulesConfig {
+    #[serde(default)]
+    pub enabled: Vec<String>,
+
+    #[serde(default)]
+    pub module_configs: std::collections::HashMap<String, toml::Table>,
 }
 
 impl Default for NotchConfig {
@@ -31,6 +44,7 @@ impl Default for NotchConfig {
             expanded_height: 400,
             corner_radius: 20,
             background_color: [0, 0, 0, 255], // Black, fully opaque
+            modules: ModulesConfig::default(),
         }
     }
 }

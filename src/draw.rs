@@ -60,6 +60,66 @@ pub fn fill_canvas_with_rounded_corners(
     }
 }
 
+/// Canvas abstraction for module drawing
+pub struct Canvas<'a> {
+    buffer: &'a mut [u8],
+    width: u32,
+    height: u32,
+}
+
+impl<'a> Canvas<'a> {
+    /// Create a new canvas from a raw buffer
+    pub fn new(buffer: &'a mut [u8], width: u32, height: u32) -> Self {
+        Self {
+            buffer,
+            width,
+            height,
+        }
+    }
+
+    /// Get the width of the canvas
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    /// Get the height of the canvas
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    /// Draw a filled rectangle
+    pub fn fill_rect(&mut self, x: i32, y: i32, width: u32, height: u32, color: [u8; 4]) {
+        // Ensure the rectangle is within bounds
+        let x_start = x.max(0) as u32;
+        let y_start = y.max(0) as u32;
+        let x_end = (x + width as i32).min(self.width as i32) as u32;
+        let y_end = (y + height as i32).min(self.height as i32) as u32;
+
+        if x_end <= x_start || y_end <= y_start {
+            return; // Nothing to draw
+        }
+
+        for y in y_start..y_end {
+            for x in x_start..x_end {
+                let idx = (y * self.width + x) as usize * 4;
+                if idx + 3 < self.buffer.len() {
+                    self.buffer[idx..idx + 4].copy_from_slice(&color);
+                }
+            }
+        }
+    }
+
+    /// Draw simple text (placeholder implementation - will need a proper font renderer)
+    pub fn draw_text(&mut self, x: i32, y: i32, text: &str, color: [u8; 4]) {
+        // This is a very simple placeholder that just draws a rectangle
+        // Later, you'll want to implement proper text rendering with a font library
+        let text_width = text.len() as u32 * 8; // Assume 8px per character
+        let text_height = 16; // Assume 16px height
+
+        self.fill_rect(x, y, text_width, text_height, color);
+    }
+}
+
 /// Draw an anti-aliased rounded corner
 /// This function can be used later for smoother corners
 #[allow(dead_code)]

@@ -1,3 +1,4 @@
+// filepath: hypr-notch/src/wayland.rs
 //! Wayland protocol handlers for hypr-notch
 //!
 //! This file implements the various Wayland protocol handlers
@@ -5,6 +6,7 @@
 //! layer shell, seat, and pointer handlers.
 
 use crate::app::AppData;
+use crate::module::interface::convert_pointer_event;
 use log::{debug, info};
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
@@ -53,7 +55,10 @@ impl CompositorHandler for AppData {
         _surface: &wl_surface::WlSurface,
         _time: u32,
     ) {
-        // Handle frame callbacks if needed
+        // Send update event to modules on frame events
+        if self.expanded {
+            self.update_modules();
+        }
     }
 }
 
@@ -169,6 +174,7 @@ impl PointerHandler for AppData {
         events: &[PointerEvent],
     ) {
         for event in events {
+            // Log pointer events
             match event.kind {
                 PointerEventKind::Enter { .. } => {
                     info!(
@@ -187,10 +193,20 @@ impl PointerHandler for AppData {
                         event.position.0, event.position.1
                     );
                 }
-                PointerEventKind::Press { .. } | PointerEventKind::Release { .. } => {
-                    debug!("Mouse button event in notch area");
+                PointerEventKind::Press { .. } => {
+                    debug!("Mouse button pressed in notch area");
+                }
+                PointerEventKind::Release { .. } => {
+                    debug!("Mouse button released in notch area");
                 }
                 _ => {}
+            }
+
+            // Forward events to modules when expanded
+            if self.expanded {
+                if let Some(module_event) = convert_pointer_event(event) {
+                    self.update_modules(); // Update modules on any pointer event
+                }
             }
         }
     }
