@@ -97,8 +97,8 @@ impl Module for ClockModule {
 
     fn handle_event(&mut self, event: &ModuleEvent, _area: Rect) -> bool {
         match event {
-            ModuleEvent::Update => {
-                // Redraw on update events
+            ModuleEvent::Update | ModuleEvent::UpdateExpanded => {
+                // Redraw on update events when visible
                 true
             }
             _ => false,

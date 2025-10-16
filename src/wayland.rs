@@ -91,11 +91,6 @@ impl OutputHandler for AppData {
 }
 
 impl LayerShellHandler for AppData {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        info!("LayerShellHandler: closed");
-        self.close_layer_surface();
-    }
-
     fn configure(
         &mut self,
         _conn: &Connection,
@@ -104,7 +99,8 @@ impl LayerShellHandler for AppData {
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        info!("Surface configured to size: {:?}", configure.new_size);
+        info!("LayerShellHandler: configure: {:?}", configure.new_size);
+
         let mut width = self.width;
         let mut height = self.height;
 
@@ -118,7 +114,19 @@ impl LayerShellHandler for AppData {
         self.update_size(width, height);
         self.set_configured(true);
 
+        // Only now: set input region and draw, and only once!
+        if !self.buffer_drawn {
+            self.set_full_input_region();
+            let _ = self.draw();
+            self.buffer_drawn = true;
+        }
+
         info!("Surface now configured with size: {}x{}", width, height);
+    }
+
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
+        log::info!("LayerShellHandler: closed");
+        self.close_layer_surface();
     }
 }
 
@@ -138,14 +146,10 @@ impl SeatHandler for AppData {
         seat: wl_seat::WlSeat,
         capability: Capability,
     ) {
-        info!("SeatHandler: new_capability: {:?}", capability);
+        log::info!("SeatHandler: new_capability: {:?}", capability);
         if capability == Capability::Pointer {
             let pointer = self.seat_state().get_pointer(_qh, &seat).ok();
-            if pointer.is_some() {
-                info!("Pointer capability acquired and pointer created");
-            } else {
-                warn!("Pointer capability acquired but pointer creation failed");
-            }
+            log::info!("Pointer created: {:?}", pointer.is_some());
             self.set_pointer(pointer);
         }
     }
@@ -176,10 +180,13 @@ impl PointerHandler for AppData {
         _pointer: &wl_pointer::WlPointer,
         events: &[PointerEvent],
     ) {
-        debug!(
+        log::info!(
             "PointerHandler: pointer_frame called with {} events",
             events.len()
         );
+        for event in events {
+            log::info!("Pointer event: {:?}", event.kind);
+        }
         handle_pointer_events(events, self);
     }
 }

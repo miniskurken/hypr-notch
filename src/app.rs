@@ -1,5 +1,6 @@
 // filepath: src/app.rs
 //! Main application logic for hypr-notch
+
 use crate::config::NotchConfig;
 use crate::draw;
 use crate::module::{ModuleEvent, ModuleRegistry};
@@ -38,6 +39,8 @@ pub struct AppData {
     config: NotchConfig,
     last_draw: Option<Instant>,
     module_registry: ModuleRegistry,
+    input_region: Option<Region>,
+    pub(crate) buffer_drawn: bool,
 }
 
 impl AppData {
@@ -56,7 +59,7 @@ impl AppData {
         layer_surface.set_anchor(Anchor::TOP);
         layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
         layer_surface.set_size(config.collapsed_width, config.collapsed_height);
-        layer_surface.set_exclusive_zone(0);
+        layer_surface.set_exclusive_zone(-1);
         layer_surface.set_margin(0, 0, 0, 0);
         info!("Committing layer surface configuration");
         layer_surface.wl_surface().commit();
@@ -70,7 +73,7 @@ impl AppData {
             module_registry.add_module(Box::new(ClockModule::new()));
         }
 
-        let app_data = Self {
+        Self {
             registry_state,
             output_state,
             seat_state,
@@ -86,12 +89,9 @@ impl AppData {
             config,
             last_draw: None,
             module_registry,
-        };
-
-        app_data.set_full_input_region();
-
-        info!("AppData initialized, input region set.");
-        app_data
+            input_region: None,
+            buffer_drawn: false,
+        }
     }
 
     pub fn is_configured(&self) -> bool {
@@ -108,6 +108,12 @@ impl AppData {
     }
 
     pub fn draw(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        log::debug!("AppData::draw: drawing surface");
+
+        if !self.configured {
+            debug!("draw() called before surface is configured, skipping");
+            return Ok(());
+        }
         let now = Instant::now();
         if let Some(last_draw) = self.last_draw {
             if now.duration_since(last_draw) < Duration::from_millis(16) {
@@ -166,18 +172,6 @@ impl AppData {
 
         self.expanded = expand;
 
-        if expand {
-            info!(
-                "Notch expanding to {}x{}",
-                self.config.expanded_width, self.config.expanded_height
-            );
-        } else {
-            info!(
-                "Notch collapsing to {}x{}",
-                self.config.collapsed_width, self.config.collapsed_height
-            );
-        }
-
         if let Some(layer_surface) = &self.layer_surface {
             if expand {
                 self.width = self.config.expanded_width;
@@ -191,21 +185,18 @@ impl AppData {
                 layer_surface.set_size(self.width, self.height);
             }
             layer_surface.wl_surface().commit();
-            self.set_full_input_region();
-            info!(
-                "Resized and updated input region to {}x{}",
-                self.width, self.height
-            );
+            self.set_full_input_region(); // <-- Add this line
         }
     }
 
-    pub fn set_full_input_region(&self) {
+    pub fn set_full_input_region(&mut self) {
         if let Some(layer_surface) = &self.layer_surface {
             let surface = layer_surface.wl_surface();
             match Region::new(&self.compositor_state) {
                 Ok(region) => {
                     region.add(0, 0, self.width as i32, self.height as i32);
                     surface.set_input_region(Some(region.wl_region()));
+                    self.input_region = Some(region);
                     info!(
                         "Set input region to (0, 0, {}, {}) for surface {:?}",
                         self.width,
@@ -223,7 +214,15 @@ impl AppData {
     }
 
     pub fn update_modules(&mut self) {
-        self.module_registry.handle_event(&ModuleEvent::Update);
+        if self.expanded {
+            log::debug!("AppData::update_modules: sending UpdateExpanded");
+            self.module_registry
+                .handle_event(&ModuleEvent::UpdateExpanded);
+        } else {
+            log::debug!("AppData::update_modules: sending UpdateCollapsed");
+            self.module_registry
+                .handle_event(&ModuleEvent::UpdateCollapsed);
+        }
     }
 
     pub fn registry_state(&mut self) -> &mut RegistryState {

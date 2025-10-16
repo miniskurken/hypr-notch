@@ -85,6 +85,8 @@ impl ModuleRegistry {
     /// Send an event to the appropriate module
     pub fn handle_event(&mut self, event: &ModuleEvent) -> bool {
         // For Enter/Motion/Press events, find which module contains the point
+        log::debug!("ModuleRegistry::handle_event: received event {:?}", event);
+
         match event {
             ModuleEvent::Enter { x, y }
             | ModuleEvent::Motion { x, y }
