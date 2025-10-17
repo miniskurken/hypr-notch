@@ -24,6 +24,26 @@ use wayland_client::{
 };
 
 impl CompositorHandler for AppData {
+    fn surface_enter(
+        &mut self,
+        _conn: &wayland_client::Connection,
+        _qh: &wayland_client::QueueHandle<Self>,
+        _surface: &wayland_client::protocol::wl_surface::WlSurface,
+        _output: &wayland_client::protocol::wl_output::WlOutput,
+    ) {
+        // No-op
+    }
+
+    fn surface_leave(
+        &mut self,
+        _conn: &wayland_client::Connection,
+        _qh: &wayland_client::QueueHandle<Self>,
+        _surface: &wayland_client::protocol::wl_surface::WlSurface,
+        _output: &wayland_client::protocol::wl_output::WlOutput,
+    ) {
+        // No-op
+    }
+
     fn scale_factor_changed(
         &mut self,
         _conn: &Connection,
