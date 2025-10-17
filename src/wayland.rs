@@ -3,7 +3,7 @@
 
 use crate::app::AppData;
 use crate::pointer::handle_pointer_events;
-use log::{debug, info, warn};
+use log::{debug, info};
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
     delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry,

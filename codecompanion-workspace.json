@@ -49,6 +49,23 @@
         "modules_mod_rs",
         "modules_clock_rs"
       ]
+    },
+    {
+        "name": "Entire Project",
+        "description": "Access to the entire project for context.",
+        "system_prompt": "You have access to the entire hypr-notch project for context.",
+        "data": [
+        "main_rs",
+        "app_rs",
+        "config_rs",
+        "draw_rs",
+        "wayland_rs",
+        "module_mod_rs",
+        "module_interface_rs",
+        "module_registry_rs",
+        "modules_mod_rs",
+        "modules_clock_rs"
+        ]
     }
   ],
   "data": {

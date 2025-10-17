@@ -7,11 +7,14 @@ mod modules;
 mod pointer;
 mod wayland;
 
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
 use app::AppData;
+use calloop::channel::{channel, Event as ChannelEvent};
 use calloop::{timer::TimeoutAction, timer::Timer, EventLoop};
 use calloop_wayland_source::WaylandSource;
 use config::NotchConfig;
@@ -69,7 +72,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config,
         &conn,
     )));
+
+    // Create the event loop before registering sources
     let mut event_loop = EventLoop::try_new()?;
+
+    // Set up config file watcher using calloop channel
+    let (tx, rx) = channel();
+    let config_path = NotchConfig::get_config_path();
+    let parent = config_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+    let config_path = config_path.canonicalize().unwrap_or(config_path);
+
+    let mut watcher: RecommendedWatcher = Watcher::new(
+        move |res| {
+            if let Ok(event) = res {
+                let _ = tx.send(event);
+            }
+        },
+        notify::Config::default(),
+    )?;
+    watcher.watch(&parent, RecursiveMode::NonRecursive)?;
+
+    // Register watcher with calloop
+    {
+        let app_data = app_data.clone();
+        let config_path = config_path.clone();
+        event_loop.handle().insert_source(rx, move |event, _, _| {
+            if let ChannelEvent::Msg(ev) = event {
+                if ev.paths.iter().any(|p| {
+                    // Canonicalize event path for comparison
+                    p.canonicalize()
+                        .map(|cp| cp == config_path)
+                        .unwrap_or(false)
+                }) && matches!(ev.kind, EventKind::Modify(_))
+                {
+                    log::info!("Config file changed, reloading...");
+                    if let Ok(new_config) = NotchConfig::load_from_file() {
+                        let mut app = app_data.borrow_mut();
+                        app.reload_config(new_config);
+                    }
+                }
+            }
+        });
+    }
 
     // Register Wayland event queue as a source
     {

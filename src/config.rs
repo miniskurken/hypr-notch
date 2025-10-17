@@ -51,7 +51,7 @@ impl Default for NotchConfig {
 
 impl NotchConfig {
     /// Get the path to the configuration file
-    fn get_config_path() -> PathBuf {
+    pub fn get_config_path() -> PathBuf {
         let config_dir = if let Some(config_dir) = dirs::config_dir() {
             config_dir.join("hypr-notch")
         } else {

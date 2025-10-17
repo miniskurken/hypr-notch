@@ -225,6 +225,46 @@ impl AppData {
         }
     }
 
+    pub fn center_layer_surface(&mut self) {
+        use smithay_client_toolkit::shell::wlr_layer::Anchor;
+        if let Some(layer_surface) = &self.layer_surface {
+            layer_surface.set_anchor(Anchor::TOP);
+            layer_surface.set_margin(0, 0, 0, 0);
+            // Optionally set exclusive zone
+            layer_surface.set_exclusive_zone(-1);
+            layer_surface.wl_surface().commit();
+            log::info!("Layer surface re-centered after resize");
+        }
+    }
+
+    pub fn reload_config(&mut self, new_config: NotchConfig) {
+        log::info!("Reloading config in AppData");
+        self.config = new_config.clone();
+
+        // Resize if dimensions changed
+        if self.expanded {
+            self.width = self.config.expanded_width;
+            self.height = self.config.expanded_height;
+        } else {
+            self.width = self.config.collapsed_width;
+            self.height = self.config.collapsed_height;
+        }
+
+        // Update layer surface size and re-center
+        if let Some(layer_surface) = &self.layer_surface {
+            layer_surface.set_size(self.width, self.height);
+            self.center_layer_surface();
+        }
+
+        // Recalculate layout and redraw
+        self.module_registry
+            .load_modules_from_config(&self.config)
+            .ok();
+        self.module_registry
+            .calculate_layout(self.width, self.height);
+        let _ = self.draw();
+    }
+
     pub fn registry_state(&mut self) -> &mut RegistryState {
         &mut self.registry_state
     }

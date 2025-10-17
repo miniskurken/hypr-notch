@@ -35,12 +35,16 @@ impl ModuleRegistry {
     /// Load modules based on configuration
     pub fn load_modules_from_config(
         &mut self,
-        _config: &NotchConfig,
+        config: &NotchConfig,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // Will implement later when we have modules to load
+        // For each enabled module, re-init with new config
+        for module in &mut self.modules {
+            if let Some(cfg) = config.modules.module_configs.get(module.id()) {
+                module.init(cfg)?;
+            }
+        }
         Ok(())
     }
-
     /// Calculate the layout of all modules based on available space
     pub fn calculate_layout(&mut self, total_width: u32, _total_height: u32) {
         // Simple layout: stack modules vertically with margins

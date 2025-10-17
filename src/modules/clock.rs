@@ -24,7 +24,7 @@ impl ClockModule {
             color: [255, 255, 255, 255], // White
             format: "%H:%M:%S".to_string(),
             font_size: 16.0,
-            background_color: [50, 50, 50, 200], // Semi-transparent dark gray
+            background_color: [0, 0, 0, 0], // Fully transparent
         }
     }
 
@@ -74,23 +74,36 @@ impl Module for ClockModule {
             self.font_size = size as f32;
         }
 
+        if let Some(bg) = config.get("background_color").and_then(|v| v.as_array()) {
+            if bg.len() >= 4 {
+                for (i, component) in bg.iter().take(4).enumerate() {
+                    if let Some(val) = component.as_integer() {
+                        self.background_color[i] = val as u8;
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
     fn draw(&self, canvas: &mut Canvas, area: Rect) -> Result<(), Box<dyn std::error::Error>> {
-        // Fill background
-        canvas.fill_rect(
-            area.x,
-            area.y,
-            area.width,
-            area.height,
-            self.background_color,
-        );
+        // Fill background only if not fully transparent
+        if self.background_color[3] > 0 {
+            canvas.fill_rect(
+                area.x,
+                area.y,
+                area.width,
+                area.height,
+                self.background_color,
+            );
+        }
 
         // Draw time text
         let time_str = self.get_current_time();
-        let y_pos = area.y + ((area.height as i32 - self.font_size as i32) / 2);
-        canvas.draw_text(area.x + 10, y_pos, &time_str, self.color, self.font_size);
+        let font_size = self.font_size.min(area.height as f32 * 0.8);
+        let y_pos = area.y + ((area.height as f32 - font_size) / 2.0) as i32;
+        canvas.draw_text(area.x + 10, y_pos, &time_str, self.color, font_size);
 
         Ok(())
     }

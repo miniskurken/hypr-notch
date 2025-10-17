@@ -15,3 +15,5 @@ dirs = "*"
 log = "*"
 env_logger = "*"
 fontdue = "*"
+notify = "*"
+
