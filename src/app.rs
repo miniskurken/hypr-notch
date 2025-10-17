@@ -1,7 +1,7 @@
 // filepath: src/app.rs
 //! Main application logic for hypr-notch
 
-use crate::config::NotchConfig;
+use crate::config::{NotchConfig, NotchStyleResolved};
 use crate::draw;
 use crate::module::{ModuleEvent, ModuleRegistry};
 use crate::modules::ClockModule;
@@ -36,7 +36,7 @@ pub struct AppData {
     configured: bool,
     pub(crate) expanded: bool,
     pointer: Option<wl_pointer::WlPointer>,
-    config: NotchConfig,
+    pub config: NotchConfig, // <-- Make public
     last_draw: Option<Instant>,
     module_registry: ModuleRegistry,
     input_region: Option<Region>,
@@ -56,9 +56,12 @@ impl AppData {
         _connection: &Connection,
     ) -> Self {
         info!("Configuring layer surface");
+
+        let style = config.style_for(false); // collapsed by default
+
         layer_surface.set_anchor(Anchor::TOP);
         layer_surface.set_keyboard_interactivity(KeyboardInteractivity::None);
-        layer_surface.set_size(config.collapsed_width, config.collapsed_height);
+        layer_surface.set_size(style.width, style.height);
         layer_surface.set_exclusive_zone(-1);
         layer_surface.set_margin(0, 0, 0, 0);
         info!("Committing layer surface configuration");
@@ -81,8 +84,8 @@ impl AppData {
             shm_state,
             layer_surface: Some(layer_surface),
             pool,
-            width: config.collapsed_width,
-            height: config.collapsed_height,
+            width: style.width,
+            height: style.height,
             configured: false,
             expanded: false,
             pointer: None,
@@ -121,6 +124,11 @@ impl AppData {
             }
         }
         self.last_draw = Some(now);
+
+        let style = self.config.style_for(self.expanded);
+        self.width = style.width;
+        self.height = style.height;
+
         info!("Drawing surface {}x{}", self.width, self.height);
 
         let width = self.width;
@@ -135,8 +143,8 @@ impl AppData {
         )?;
 
         let expanded = self.expanded;
-        let corner_radius = self.config.corner_radius;
-        let color = self.config.background_color;
+        let corner_radius = style.corner_radius;
+        let color = style.background_color;
 
         draw::fill_canvas_with_rounded_corners(
             canvas,
@@ -172,20 +180,26 @@ impl AppData {
 
         self.expanded = expand;
 
+        let style = self.config.style_for(self.expanded);
+        self.width = style.width;
+        self.height = style.height;
+
+        log::info!(
+            "Requesting notch resize to {}x{} (expanded={})",
+            self.width,
+            self.height,
+            self.expanded
+        );
+
         if let Some(layer_surface) = &self.layer_surface {
+            layer_surface.set_size(self.width, self.height);
             if expand {
-                self.width = self.config.expanded_width;
-                self.height = self.config.expanded_height;
-                layer_surface.set_size(self.width, self.height);
                 self.module_registry
                     .calculate_layout(self.width, self.height);
-            } else {
-                self.width = self.config.collapsed_width;
-                self.height = self.config.collapsed_height;
-                layer_surface.set_size(self.width, self.height);
             }
             layer_surface.wl_surface().commit();
-            self.set_full_input_region(); // <-- Add this line
+            self.set_full_input_region();
+            let _ = self.draw();
         }
     }
 
@@ -230,7 +244,6 @@ impl AppData {
         if let Some(layer_surface) = &self.layer_surface {
             layer_surface.set_anchor(Anchor::TOP);
             layer_surface.set_margin(0, 0, 0, 0);
-            // Optionally set exclusive zone
             layer_surface.set_exclusive_zone(-1);
             layer_surface.wl_surface().commit();
             log::info!("Layer surface re-centered after resize");
@@ -241,14 +254,9 @@ impl AppData {
         log::info!("Reloading config in AppData");
         self.config = new_config.clone();
 
-        // Resize if dimensions changed
-        if self.expanded {
-            self.width = self.config.expanded_width;
-            self.height = self.config.expanded_height;
-        } else {
-            self.width = self.config.collapsed_width;
-            self.height = self.config.collapsed_height;
-        }
+        let style = self.config.style_for(self.expanded);
+        self.width = style.width;
+        self.height = style.height;
 
         // Update layer surface size and re-center
         if let Some(layer_surface) = &self.layer_surface {

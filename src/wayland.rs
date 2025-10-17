@@ -121,8 +121,10 @@ impl LayerShellHandler for AppData {
     ) {
         info!("LayerShellHandler: configure: {:?}", configure.new_size);
 
-        let mut width = self.width;
-        let mut height = self.height;
+        // Use the requested size if configure.new_size is (0, 0)
+        let style = self.config.style_for(self.expanded);
+        let mut width = style.width;
+        let mut height = style.height;
 
         if configure.new_size.0 != 0 {
             width = configure.new_size.0;
@@ -141,7 +143,10 @@ impl LayerShellHandler for AppData {
             self.buffer_drawn = true;
         }
 
-        info!("Surface now configured with size: {}x{}", width, height);
+        info!(
+            "Surface now configured with size: {}x{} (requested: {}x{})",
+            width, height, style.width, style.height
+        );
     }
 
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {

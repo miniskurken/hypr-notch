@@ -1,3 +1,4 @@
+// filepath: src/config.rs
 //! Configuration handling for hypr-notch
 //!
 //! This file defines the configuration structure and provides
@@ -6,22 +7,33 @@
 
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fs,
     io::ErrorKind,
     path::{Path, PathBuf},
 };
 
+/// Style properties for the notch (collapsed/expanded/main)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NotchStyle {
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub corner_radius: Option<u32>,
+    pub background_color: Option<[u8; 4]>,
+}
+
 /// Configuration for the notch appearance and behavior
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotchConfig {
-    pub collapsed_width: u32,
-    pub collapsed_height: u32,
-    pub expanded_width: u32,
-    pub expanded_height: u32,
-    pub corner_radius: u32,
-    pub background_color: [u8; 4], // BGRA format
+    #[serde(flatten)]
+    pub main: NotchStyle,
 
-    // New modules field with default
+    #[serde(default)]
+    pub collapsed: NotchStyle,
+
+    #[serde(default)]
+    pub expanded: NotchStyle,
+
     #[serde(default)]
     pub modules: ModulesConfig,
 }
@@ -32,18 +44,29 @@ pub struct ModulesConfig {
     pub enabled: Vec<String>,
 
     #[serde(default)]
-    pub module_configs: std::collections::HashMap<String, toml::Table>,
+    pub module_configs: HashMap<String, toml::Table>,
+}
+
+/// Resolved style with no Option fields
+#[derive(Debug, Clone)]
+pub struct NotchStyleResolved {
+    pub width: u32,
+    pub height: u32,
+    pub corner_radius: u32,
+    pub background_color: [u8; 4],
 }
 
 impl Default for NotchConfig {
     fn default() -> Self {
         Self {
-            collapsed_width: 300,
-            collapsed_height: 40,
-            expanded_width: 800,
-            expanded_height: 400,
-            corner_radius: 20,
-            background_color: [0, 0, 0, 255], // Black, fully opaque
+            main: NotchStyle {
+                width: Some(300),
+                height: Some(40),
+                corner_radius: Some(10),
+                background_color: Some([0, 0, 0, 255]),
+            },
+            collapsed: NotchStyle::default(),
+            expanded: NotchStyle::default(),
             modules: ModulesConfig::default(),
         }
     }
@@ -98,5 +121,26 @@ impl NotchConfig {
         fs::write(config_path, content)?;
 
         Ok(())
+    }
+
+    /// Get the effective style for the current state (expanded/collapsed)
+    pub fn style_for(&self, expanded: bool) -> NotchStyleResolved {
+        let (section, fallback) = if expanded {
+            (&self.expanded, &self.main)
+        } else {
+            (&self.collapsed, &self.main)
+        };
+        NotchStyleResolved {
+            width: section.width.or(fallback.width).unwrap_or(300),
+            height: section.height.or(fallback.height).unwrap_or(40),
+            corner_radius: section
+                .corner_radius
+                .or(fallback.corner_radius)
+                .unwrap_or(10),
+            background_color: section
+                .background_color
+                .or(fallback.background_color)
+                .unwrap_or([0, 0, 0, 255]),
+        }
     }
 }

@@ -1,13 +1,13 @@
 // filepath: src/main.rs
 mod app;
 mod config;
+mod config_watch;
 mod draw;
 mod module;
 mod modules;
 mod pointer;
 mod wayland;
 
-use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
@@ -53,7 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shm = Shm::bind(&global_list, &qh)?;
     let seat_state = SeatState::new(&global_list, &qh);
 
-    let pool_size = (config.expanded_width * config.expanded_height * 4) as usize;
+    let expanded_style = config.style_for(true);
+    let pool_size = (expanded_style.width * expanded_style.height * 4) as usize;
     let pool = SlotPool::new(pool_size, &shm)?;
 
     let surface = compositor.create_surface(&qh);
@@ -78,35 +79,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Set up config file watcher using calloop channel
     let (tx, rx) = channel();
-    let config_path = NotchConfig::get_config_path();
-    let parent = config_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .to_path_buf();
-    let config_path = config_path.canonicalize().unwrap_or(config_path);
-
-    let mut watcher: RecommendedWatcher = Watcher::new(
-        move |res| {
-            if let Ok(event) = res {
-                let _ = tx.send(event);
-            }
-        },
-        notify::Config::default(),
-    )?;
-    watcher.watch(&parent, RecursiveMode::NonRecursive)?;
+    let _watcher = config_watch::setup_config_watcher(tx)?;
 
     // Register watcher with calloop
     {
         let app_data = app_data.clone();
-        let config_path = config_path.clone();
+        let config_path = NotchConfig::get_config_path()
+            .canonicalize()
+            .unwrap_or_else(|_| NotchConfig::get_config_path());
         event_loop.handle().insert_source(rx, move |event, _, _| {
             if let ChannelEvent::Msg(ev) = event {
                 if ev.paths.iter().any(|p| {
-                    // Canonicalize event path for comparison
                     p.canonicalize()
                         .map(|cp| cp == config_path)
                         .unwrap_or(false)
-                }) && matches!(ev.kind, EventKind::Modify(_))
+                }) && matches!(ev.kind, notify::EventKind::Modify(_))
                 {
                     log::info!("Config file changed, reloading...");
                     if let Ok(new_config) = NotchConfig::load_from_file() {
