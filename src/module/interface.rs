@@ -18,22 +18,38 @@ pub struct Rect {
 #[derive(Debug, Clone)]
 pub enum ModuleEvent {
     /// Mouse entered the module area
-    Enter { x: f64, y: f64 },
+    Enter {
+        x: f64,
+        y: f64,
+    },
 
     /// Mouse left the module area
     Leave,
 
     /// Mouse moved within the module area
-    Motion { x: f64, y: f64 },
+    Motion {
+        x: f64,
+        y: f64,
+    },
 
     /// Mouse button pressed within the module area
-    Press { button: u32, x: f64, y: f64 },
+    Press {
+        button: u32,
+        x: f64,
+        y: f64,
+    },
 
     /// Mouse button released within the module area
-    Release { button: u32, x: f64, y: f64 },
+    Release {
+        button: u32,
+        x: f64,
+        y: f64,
+    },
 
     /// Module should update its state (e.g., clock tick)
     Update,
+    UpdateExpanded,
+    UpdateCollapsed,
 }
 
 /// Core module trait that all modules must implement
