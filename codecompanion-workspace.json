@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "hypr-notch",
+  "version": "1.0.0",
+  "description": "Workspace for the hypr-notch project, a Wayland notch overlay written in Rust.",
+  "system_prompt": "You are an expert Rust developer assisting with the hypr-notch project.",
+  "groups": [
+    {
+      "name": "Core",
+      "description": "Focus on the main application logic and configuration.",
+      "system_prompt": "Assist with core logic and configuration of hypr-notch.",
+      "data": [
+        "main_rs",
+        "app_rs",
+        "config_rs"
+      ]
+    },
+    {
+      "name": "Drawing",
+      "description": "Work on drawing and rendering logic.",
+      "system_prompt": "Assist with drawing and rendering code in hypr-notch.",
+      "data": [
+        "draw_rs"
+      ]
+    },
+    {
+      "name": "Wayland",
+      "description": "Wayland protocol integration and handling.",
+      "system_prompt": "Assist with Wayland integration in hypr-notch.",
+      "data": [
+        "wayland_rs"
+      ]
+    },
+    {
+      "name": "Module Interface",
+      "description": "Module interface and registry logic.",
+      "system_prompt": "Assist with module interface and registry code.",
+      "data": [
+        "module_mod_rs",
+        "module_interface_rs",
+        "module_registry_rs"
+      ]
+    },
+    {
+      "name": "Modules",
+      "description": "Individual modules such as clock.",
+      "system_prompt": "Assist with module implementations.",
+      "data": [
+        "modules_mod_rs",
+        "modules_clock_rs"
+      ]
+    }
+  ],
+  "data": {
+    "main_rs": {
+      "type": "file",
+      "path": "src/main.rs",
+      "description": "Entry point for the hypr-notch application."
+    },
+    "app_rs": {
+      "type": "file",
+      "path": "src/app.rs",
+      "description": "Application logic and state management."
+    },
+    "config_rs": {
+      "type": "file",
+      "path": "src/config.rs",
+      "description": "Configuration parsing and management."
+    },
+    "draw_rs": {
+      "type": "file",
+      "path": "src/draw.rs",
+      "description": "Drawing and rendering logic."
+    },
+    "wayland_rs": {
+      "type": "file",
+      "path": "src/wayland.rs",
+      "description": "Wayland protocol integration."
+    },
+    "module_mod_rs": {
+      "type": "file",
+      "path": "src/module/mod.rs",
+      "description": "Module system root."
+    },
+    "module_interface_rs": {
+      "type": "file",
+      "path": "src/module/interface.rs",
+      "description": "Module interface definitions."
+    },
+    "module_registry_rs": {
+      "type": "file",
+      "path": "src/module/registry.rs",
+      "description": "Module registry logic."
+    },
+    "modules_mod_rs": {
+      "type": "file",
+      "path": "src/modules/mod.rs",
+      "description": "Modules root file."
+    },
+    "modules_clock_rs": {
+      "type": "file",
+      "path": "src/modules/clock.rs",
+      "description": "Clock module implementation."
+    },
+    "readme_md": {
+      "type": "file",
+      "path": "README.md",
+      "description": "Project overview and documentation."
+    }
+  }
+}
