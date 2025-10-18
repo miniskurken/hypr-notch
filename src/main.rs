@@ -3,13 +3,13 @@ mod app;
 mod config;
 mod config_watch;
 mod draw;
+mod layout;
 mod module;
 mod modules;
 mod pointer;
 mod wayland;
 
 use std::cell::RefCell;
-use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         event_loop.handle().insert_source(timer, move |_, _, _| {
             let mut app = app_data.borrow_mut();
             app.update_modules();
-            if app.is_configured() && app.buffer_drawn && app.expanded {
+            if app.is_configured() && app.buffer_drawn {
                 let _ = app.draw();
             }
             TimeoutAction::ToDuration(Duration::from_secs(1))

@@ -1,0 +1,29 @@
+[main] # Default style for the notch
+width = 600
+height = 40
+corner_radius = 10
+background_color = [0, 0, 0, 255] # Black
+
+[modules]
+enabled = ["clock"]
+
+[layout.expanded]
+row_spacing = 8
+
+[[layout.expanded.rows]]
+modules = ["clock"]
+
+[layout.collapsed]
+row_spacing = 4
+
+[[layout.collapsed.rows]]
+modules = ["clock"]
+
+[modules.state.clock.expanded]
+visible = true
+alignment = "center"
+
+[modules.state.clock.collapsed]
+visible = true
+alignment = "center"
+

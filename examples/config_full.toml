@@ -1,0 +1,61 @@
+# Intermediate hypr-notch config with external module and per-module alignment
+
+[main]
+width = 400
+height = 50
+corner_radius = 12
+background_color = [30, 30, 30, 255] # Dark gray
+
+[expanded]
+width = 900
+height = 60
+corner_radius = 16
+background_color = [20, 20, 20, 255] # Even darker gray
+
+[collapsed]
+width = 400
+height = 50
+corner_radius = 12
+background_color = [30, 30, 30, 255]
+
+[modules]
+enabled = ["clock", "example_module"]
+
+[modules.aliases]
+example_module = "../example_module/target/release/libexample_module.so"
+
+[modules.module_configs.clock]
+color = [255, 255, 255, 255] # White
+format = "%H:%M"
+font_size = 20.0
+
+[modules.module_configs.example_module]
+color = [0, 200, 255, 255] # Cyan
+
+[layout.expanded]
+row_spacing = 8
+
+[[layout.expanded.rows]]
+modules = ["clock", "example_module"]
+
+[layout.collapsed]
+row_spacing = 4
+
+[[layout.collapsed.rows]]
+modules = ["clock"]
+
+[modules.state.clock.expanded]
+visible = true
+alignment = "left"
+
+[modules.state.example_module.expanded]
+visible = true
+alignment = "right"
+
+[modules.state.clock.collapsed]
+visible = true
+alignment = "center"
+
+[modules.state.example_module.collapsed]
+visible = false
+

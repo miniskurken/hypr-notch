@@ -4,13 +4,14 @@
 //! This file implements the ModuleRegistry that manages the loading,
 //! layout, and rendering of modules.
 
-use log::{error, info};
+use crate::layout::calculate_module_layout;
+use log::info;
 use std::collections::HashMap;
 
-use crate::config::NotchConfig;
 use crate::draw::Canvas;
 use crate::module::interface::ModuleCreateFn;
 use crate::module::{Module, ModuleEvent, Rect};
+
 use libloading::{Library, Symbol};
 
 /// Manages the collection of loaded modules
@@ -90,42 +91,14 @@ impl ModuleRegistry {
         }
         Ok(())
     }
-    /// Calculate the layout of all modules based on available space
-    pub fn calculate_layout(&mut self, total_width: u32, _total_height: u32) {
-        // Simple layout: stack modules vertically with margins
-        let margin = 10i32; // Change to i32
-        let mut y_offset = margin;
-
-        for module in &self.modules {
-            let (width, height) = module.preferred_size();
-            let width = width.min(total_width - 2 * margin as u32);
-
-            self.module_areas.insert(
-                module.id().to_string(),
-                Rect {
-                    x: margin,
-                    y: y_offset,
-                    width,
-                    height,
-                },
-            );
-
-            y_offset += height as i32 + margin; // Now both are i32
-        }
-    }
 
     /// Draw all modules to the canvas
     pub fn draw(&mut self, canvas: &mut Canvas) {
-        // Calculate layout if not already done
-        if self.module_areas.is_empty() && !self.modules.is_empty() {
-            self.calculate_layout(canvas.width(), canvas.height());
-        }
-
-        // Draw each module in its area
+        // Only draw modules that have an assigned area
         for module in &self.modules {
             if let Some(area) = self.module_areas.get(module.id()) {
                 if let Err(e) = module.draw(canvas, *area) {
-                    error!("Error drawing module {}: {}", module.name(), e);
+                    log::error!("Error drawing module {}: {}", module.name(), e);
                 }
             }
         }
@@ -174,5 +147,10 @@ impl ModuleRegistry {
     /// Update the Canvas structure to prepare for module implementation
     pub fn has_modules(&self) -> bool {
         !self.modules.is_empty()
+    }
+
+    pub fn calculate_layout(&mut self, config: &crate::config::NotchConfig, expanded: bool) {
+        let layout = calculate_module_layout(config, &self.modules, expanded);
+        self.module_areas = layout.areas;
     }
 }

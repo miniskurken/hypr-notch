@@ -1,0 +1,93 @@
+# Colorful hypr-notch config with multiple modules and custom backgrounds
+
+[main]
+width = 500
+height = 60
+corner_radius = 18
+background_color = [50, 50, 50, 255] # Dark gray
+
+[expanded]
+width = 1200
+height = 100
+corner_radius = 24
+background_color = [10, 10, 40, 255] # Deep blue
+
+[collapsed]
+width = 500
+height = 60
+corner_radius = 18
+background_color = [50, 50, 50, 255]
+
+[modules]
+enabled = ["clock", "example_module", "weather", "music"]
+
+[modules.aliases]
+example_module = "../example_module/target/release/libexample_module.so"
+weather = "../weather_module/target/release/libweather_module.so"
+music = "../music_module/target/release/libmusic_module.so"
+
+[modules.module_configs.clock]
+color = [255, 255, 0, 255] # Yellow
+format = "%H:%M:%S"
+font_size = 28.0
+background_color = [0, 0, 0, 128] # Semi-transparent black
+
+[modules.module_configs.example_module]
+color = [0, 200, 255, 255] # Cyan
+background_color = [0, 0, 0, 180]
+
+[modules.module_configs.weather]
+color = [0, 255, 0, 255] # Green
+background_color = [0, 0, 0, 100]
+
+[modules.module_configs.music]
+color = [255, 0, 128, 255] # Pink
+background_color = [0, 0, 0, 150]
+
+[layout.expanded]
+row_spacing = 10
+
+[[layout.expanded.rows]]
+modules = ["clock", "weather"]
+# Per-module alignment: clock left, weather center
+
+[[layout.expanded.rows]]
+modules = ["music", "example_module"]
+# Per-module alignment: music left, example_module right
+
+[layout.collapsed]
+row_spacing = 6
+
+[[layout.collapsed.rows]]
+modules = ["clock", "music"]
+
+[modules.state.clock.expanded]
+visible = true
+alignment = "left"
+
+[modules.state.weather.expanded]
+visible = true
+alignment = "center"
+
+[modules.state.music.expanded]
+visible = true
+alignment = "left"
+
+[modules.state.example_module.expanded]
+visible = true
+alignment = "right"
+
+[modules.state.clock.collapsed]
+visible = true
+alignment = "left"
+
+[modules.state.music.collapsed]
+visible = true
+alignment = "right"
+
+[modules.state.weather.collapsed]
+visible = false
+
+[modules.state.example_module.collapsed]
+visible = false
+

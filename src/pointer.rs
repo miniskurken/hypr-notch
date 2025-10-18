@@ -9,10 +9,9 @@ use smithay_client_toolkit::seat::pointer::{PointerEvent, PointerEventKind};
 pub fn handle_pointer_events(events: &[PointerEvent], app: &mut AppData) {
     debug!("handle_pointer_events: {} events", events.len());
     for event in events {
-        info!("Pointer event: {:?}", event.kind);
         match event.kind {
             PointerEventKind::Enter { .. } => {
-                info!(
+                debug!(
                     "Mouse entered notch area at coordinates: ({:.2}, {:.2})",
                     event.position.0, event.position.1
                 );

@@ -1,7 +1,7 @@
 // filepath: src/app.rs
 //! Main application logic for hypr-notch
 
-use crate::config::{NotchConfig, NotchStyleResolved};
+use crate::config::NotchConfig;
 use crate::draw;
 use crate::module::{ModuleEvent, ModuleRegistry};
 use crate::modules::ClockModule;
@@ -71,10 +71,8 @@ impl AppData {
         if let Err(err) = module_registry.load_modules_from_config(&config) {
             log::error!("Failed to load modules from config: {}", err);
         }
-        if !module_registry.has_modules() {
-            info!("No modules configured, adding default clock module");
-            module_registry.add_module(Box::new(ClockModule::new()));
-        }
+
+        module_registry.calculate_layout(&config, false);
 
         Self {
             registry_state,
@@ -135,6 +133,15 @@ impl AppData {
         let height = self.height;
         let stride = width * 4;
 
+        // Resize pool if needed
+        let required_size = (width * height * 4) as usize;
+        if self.pool.len() < required_size {
+            use smithay_client_toolkit::shm::slot::SlotPool;
+            let new_pool_size = required_size * 2; // Give some headroom
+            self.pool = SlotPool::new(new_pool_size, &self.shm_state)?;
+            info!("Resized buffer pool to {} bytes", new_pool_size);
+        }
+
         let (buffer, canvas) = self.pool.create_buffer(
             width as i32,
             height as i32,
@@ -155,10 +162,9 @@ impl AppData {
             color,
         );
 
-        if self.expanded {
-            let mut canvas_wrapper = draw::Canvas::new(canvas, width, height);
-            self.module_registry.draw(&mut canvas_wrapper);
-        }
+        // Draw modules in both expanded and collapsed states
+        let mut canvas_wrapper = draw::Canvas::new(canvas, width, height);
+        self.module_registry.draw(&mut canvas_wrapper);
 
         if let Some(layer_surface) = &self.layer_surface {
             buffer
@@ -193,10 +199,8 @@ impl AppData {
 
         if let Some(layer_surface) = &self.layer_surface {
             layer_surface.set_size(self.width, self.height);
-            if expand {
-                self.module_registry
-                    .calculate_layout(self.width, self.height);
-            }
+            self.module_registry
+                .calculate_layout(&self.config, self.expanded);
             layer_surface.wl_surface().commit();
             self.set_full_input_region();
             let _ = self.draw();
@@ -269,7 +273,7 @@ impl AppData {
             .load_modules_from_config(&self.config)
             .ok();
         self.module_registry
-            .calculate_layout(self.width, self.height);
+            .calculate_layout(&self.config, self.expanded);
         let _ = self.draw();
     }
 

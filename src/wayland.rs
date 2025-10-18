@@ -205,12 +205,12 @@ impl PointerHandler for AppData {
         _pointer: &wl_pointer::WlPointer,
         events: &[PointerEvent],
     ) {
-        log::info!(
+        log::debug!(
             "PointerHandler: pointer_frame called with {} events",
             events.len()
         );
         for event in events {
-            log::info!("Pointer event: {:?}", event.kind);
+            log::debug!("Pointer event: {:?}", event.kind);
         }
         handle_pointer_events(events, self);
     }

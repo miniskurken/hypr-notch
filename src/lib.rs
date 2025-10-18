@@ -1,5 +1,6 @@
 pub mod config;
 pub mod draw;
+pub mod layout;
 pub mod module;
 pub mod modules;
 
