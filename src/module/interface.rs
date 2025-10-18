@@ -132,3 +132,5 @@ pub fn convert_pointer_event(
         _ => None,
     }
 }
+
+pub type ModuleCreateFn = unsafe extern "C" fn() -> *mut dyn Module;

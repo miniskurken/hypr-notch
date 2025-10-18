@@ -1,5 +1,7 @@
 [package]
 name = "hypr-notch"
+path = "src/lib.rs"
+
 version = "0.1.0"
 edition = "2021"
 
@@ -16,4 +18,5 @@ log = "*"
 env_logger = "*"
 fontdue = "*"
 notify = "*"
+libloading = "*"
 

@@ -9,12 +9,15 @@ use std::collections::HashMap;
 
 use crate::config::NotchConfig;
 use crate::draw::Canvas;
+use crate::module::interface::ModuleCreateFn;
 use crate::module::{Module, ModuleEvent, Rect};
+use libloading::{Library, Symbol};
 
 /// Manages the collection of loaded modules
 pub struct ModuleRegistry {
     modules: Vec<Box<dyn Module>>,
     module_areas: HashMap<String, Rect>,
+    external_libs: Vec<libloading::Library>,
 }
 
 impl ModuleRegistry {
@@ -23,6 +26,7 @@ impl ModuleRegistry {
         Self {
             modules: Vec::new(),
             module_areas: HashMap::new(),
+            external_libs: Vec::new(),
         }
     }
 
@@ -32,12 +36,47 @@ impl ModuleRegistry {
         self.modules.push(module);
     }
 
+    fn load_external_module(&mut self, path: &str) -> Option<Box<dyn Module>> {
+        unsafe {
+            let lib = Library::new(path).ok()?;
+            let func: Symbol<ModuleCreateFn> = lib.get(b"create_module").ok()?;
+            let boxed = func();
+            self.external_libs.push(lib); // Keep the library alive!
+            Some(Box::from_raw(boxed))
+        }
+    }
+
     /// Load modules based on configuration
     pub fn load_modules_from_config(
         &mut self,
-        config: &NotchConfig,
+        config: &crate::config::NotchConfig,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // For each enabled module, re-init with new config
+        let enabled = &config.modules.enabled;
+
+        // Remove modules not enabled
+        self.modules
+            .retain(|m| enabled.contains(&m.id().to_string()));
+
+        // Add enabled modules that are missing
+        for module_id in enabled {
+            if !self.modules.iter().any(|m| m.id() == module_id) {
+                if let Some(path) = module_id.strip_prefix("external:") {
+                    // Try to load external module
+                    match self.load_external_module(path) {
+                        Some(module) => self.add_module(module),
+                        None => log::warn!("Failed to load external module: {}", path),
+                    }
+                } else {
+                    match module_id.as_str() {
+                        "clock" => self.add_module(Box::new(crate::modules::ClockModule::new())),
+                        // Add other built-in modules here as needed
+                        _ => log::warn!("Unknown module: {}", module_id),
+                    }
+                }
+            }
+        }
+
+        // Initialize enabled modules with their config
         for module in &mut self.modules {
             if let Some(cfg) = config.modules.module_configs.get(module.id()) {
                 module.init(cfg)?;
