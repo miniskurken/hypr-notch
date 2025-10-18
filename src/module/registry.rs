@@ -60,8 +60,14 @@ impl ModuleRegistry {
         // Add enabled modules that are missing
         for module_id in enabled {
             if !self.modules.iter().any(|m| m.id() == module_id) {
-                if let Some(path) = module_id.strip_prefix("external:") {
-                    // Try to load external module
+                if let Some(path) = config.modules.aliases.get(module_id) {
+                    // Load external module using alias path
+                    match self.load_external_module(path) {
+                        Some(module) => self.add_module(module),
+                        None => log::warn!("Failed to load external module: {}", path),
+                    }
+                } else if let Some(path) = module_id.strip_prefix("external:") {
+                    // Legacy: support external: prefix
                     match self.load_external_module(path) {
                         Some(module) => self.add_module(module),
                         None => log::warn!("Failed to load external module: {}", path),

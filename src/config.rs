@@ -13,6 +13,24 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LayoutRow {
+    pub alignment: Option<String>, // "left", "center", "right"
+    pub modules: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LayoutState {
+    pub rows: Vec<LayoutRow>,
+    pub row_spacing: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModuleStateConfig {
+    pub visible: Option<bool>,
+    pub alignment: Option<String>, // Optional per-module alignment override
+}
+
 /// Style properties for the notch (collapsed/expanded/main)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NotchStyle {
@@ -36,6 +54,17 @@ pub struct NotchConfig {
 
     #[serde(default)]
     pub modules: ModulesConfig,
+
+    #[serde(default)]
+    pub layout: LayoutConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LayoutConfig {
+    #[serde(default)]
+    pub expanded: LayoutState,
+    #[serde(default)]
+    pub collapsed: LayoutState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -45,6 +74,20 @@ pub struct ModulesConfig {
 
     #[serde(default)]
     pub module_configs: HashMap<String, toml::Table>,
+
+    #[serde(default)]
+    pub state: HashMap<String, ModuleStateConfigSet>,
+
+    #[serde(default)]
+    pub aliases: HashMap<String, String>, // alias -> path
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModuleStateConfigSet {
+    #[serde(default)]
+    pub expanded: ModuleStateConfig,
+    #[serde(default)]
+    pub collapsed: ModuleStateConfig,
 }
 
 /// Resolved style with no Option fields
@@ -68,6 +111,7 @@ impl Default for NotchConfig {
             collapsed: NotchStyle::default(),
             expanded: NotchStyle::default(),
             modules: ModulesConfig::default(),
+            layout: LayoutConfig::default(),
         }
     }
 }

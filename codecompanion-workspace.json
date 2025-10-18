@@ -12,7 +12,9 @@
       "data": [
         "main_rs",
         "app_rs",
-        "config_rs"
+        "config_rs",
+        "cargo_toml",
+        "lib_rs"
       ]
     },
     {
@@ -56,6 +58,7 @@
         "system_prompt": "You have access to the entire hypr-notch project for context.",
         "data": [
         "main_rs",
+        "lib_rs",
         "app_rs",
         "config_rs",
         "draw_rs",
@@ -64,7 +67,8 @@
         "module_interface_rs",
         "module_registry_rs",
         "modules_mod_rs",
-        "modules_clock_rs"
+        "modules_clock_rs",
+        "cargo_toml"
         ]
     }
   ],
@@ -73,6 +77,11 @@
       "type": "file",
       "path": "src/main.rs",
       "description": "Entry point for the hypr-notch application."
+    },
+    "lib_rs": {
+      "type": "file",
+      "path": "src/lib.rs",
+      "description": "Library root for hypr-notch."
     },
     "app_rs": {
       "type": "file",
@@ -118,6 +127,11 @@
       "type": "file",
       "path": "src/modules/clock.rs",
       "description": "Clock module implementation."
+    },
+    "cargo_toml": {
+        "type": "file",
+        "path": "Cargo.toml",
+        "description": "Cargo configuration file for the Rust project."
     },
     "readme_md": {
       "type": "file",
